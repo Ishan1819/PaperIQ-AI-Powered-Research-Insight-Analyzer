@@ -548,9 +548,17 @@ def extract_text_from_pdf(pdf_path) -> tuple:
     full_text = "\n\n".join([f"[PAGE_{p['page']}]\n{p['content']}" for p in pages_data])
     return full_text, pages_data
 
+def remove_section_headers(text: str) -> str:
+    """Remove section headers that end with colon from the beginning or middle of text"""
+    # Pattern to match headers like "Conclusion:", "Introduction:", "Alpha Code:", etc.
+    # Matches capitalized words followed by colon at start or after period/newline
+    text = re.sub(r'(?:^|\.\s+)([A-Z][A-Za-z\s]+):\s*', '', text)
+    text = re.sub(r'^([A-Z][A-Z\s]+):\s*', '', text)  # All caps headers
+    return text.strip()
+
 
 def extract_sections_precise(pages_data: list) -> dict:
-    """Extract sections with precise page tracking"""
+    """Extract sections with precise page tracking and header filtering"""
     sections = {}
     
     # First, create chunks directly from each page
@@ -560,8 +568,23 @@ def extract_sections_precise(pages_data: list) -> dict:
         page_num = page_data["page"]
         text = page_data["content"]
         
+        # Split into lines and filter out headers
+        lines = text.split('\n')
+        content_lines = []
+        
+        for line in lines:
+            line = line.strip()
+            # Skip section headers
+            if line.isupper() or (line.endswith(':') and len(line.split()) <= 5):
+                continue
+            if line:
+                content_lines.append(line)
+        
+        # Join filtered content
+        filtered_text = ' '.join(content_lines)
+        
         # Clean the text
-        cleaned = clean_section_content(text)
+        cleaned = clean_section_content(filtered_text)
         
         # Split into sentences
         sentences = sent_tokenize(cleaned)
@@ -576,8 +599,12 @@ def extract_sections_precise(pages_data: list) -> dict:
             current_length += len(sentence) + 1
             
             if current_length >= chunk_size:
+                chunk_text = ' '.join(current_chunk)
+                # Final cleanup to remove any remaining headers
+                chunk_text = remove_section_headers(chunk_text)
+                
                 all_chunks.append({
-                    "text": ' '.join(current_chunk),
+                    "text": chunk_text,
                     "page": page_num
                 })
                 current_chunk = []
@@ -585,8 +612,11 @@ def extract_sections_precise(pages_data: list) -> dict:
         
         # Add remaining sentences from this page
         if current_chunk:
+            chunk_text = ' '.join(current_chunk)
+            chunk_text = remove_section_headers(chunk_text)
+            
             all_chunks.append({
-                "text": ' '.join(current_chunk),
+                "text": chunk_text,
                 "page": page_num
             })
     
