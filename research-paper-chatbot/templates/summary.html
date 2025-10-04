@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document Summary - Research Paper Chatbot</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+  </head>
+  <body>
+    <nav class="navbar">
+      <div class="nav-container">
+        <a href="/" class="nav-brand">
+          <span class="brand-icon">🎓</span>
+          Research Paper Chatbot
+        </a>
+        <div class="nav-links">
+          <a href="/" class="nav-link">Home</a>
+          <a href="/upload" class="nav-link">Upload</a>
+          <a href="/chat" class="nav-link">Chat</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container">
+      <div class="summary-section">
+        <div class="section-header">
+          <h1>Document Summary</h1>
+          <p class="section-description">
+            Generate an intelligent summary of your research paper
+          </p>
+        </div>
+
+        <div class="summary-controls">
+          <div class="control-group">
+            <label for="summaryRatio">Summary Length:</label>
+            <select id="summaryRatio" class="summary-select">
+              <option value="0.2">Short (20%)</option>
+              <option value="0.3" selected>Medium (30%)</option>
+              <option value="0.4">Long (40%)</option>
+            </select>
+          </div>
+          <button id="generateBtn" class="btn btn-primary">
+            <span class="btn-icon">✨</span>
+            Generate Summary
+          </button>
+        </div>
+
+        <div
+          id="loadingSpinner"
+          class="loading-container"
+          style="display: none"
+        >
+          <div class="spinner"></div>
+          <p>Generating summary...</p>
+        </div>
+
+        <div id="summaryContent" class="summary-box" style="display: none">
+          <div class="summary-header">
+            <h2>Summary</h2>
+            <span class="summary-badge">AI Generated</span>
+          </div>
+          <div id="summaryText" class="summary-text"></div>
+        </div>
+
+        <div id="errorBox" class="error-message" style="display: none"></div>
+
+        <div class="action-buttons" style="margin-top: 30px">
+          <a href="/chat" class="btn btn-secondary">
+            <span class="btn-icon">💬</span>
+            Go to Chat
+          </a>
+          <a href="/upload" class="btn btn-outline">
+            <span class="btn-icon">📤</span>
+            Upload New Document
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const generateBtn = document.getElementById("generateBtn");
+      const summaryRatio = document.getElementById("summaryRatio");
+      const loadingSpinner = document.getElementById("loadingSpinner");
+      const summaryContent = document.getElementById("summaryContent");
+      const summaryText = document.getElementById("summaryText");
+      const errorBox = document.getElementById("errorBox");
+
+      generateBtn.addEventListener("click", async () => {
+        const ratio = parseFloat(summaryRatio.value);
+
+        loadingSpinner.style.display = "block";
+        summaryContent.style.display = "none";
+        errorBox.style.display = "none";
+        generateBtn.disabled = true;
+
+        try {
+          const response = await fetch("/generate-summary", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ ratio }),
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            summaryText.textContent = data.summary;
+            summaryContent.style.display = "block";
+          } else {
+            errorBox.textContent = data.error || "Failed to generate summary";
+            errorBox.style.display = "block";
+          }
+        } catch (error) {
+          errorBox.textContent = "Error: " + error.message;
+          errorBox.style.display = "block";
+        } finally {
+          loadingSpinner.style.display = "none";
+          generateBtn.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>

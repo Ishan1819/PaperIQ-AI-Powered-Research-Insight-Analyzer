@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Upload Document - Research Paper Chatbot</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+  </head>
+  <body>
+    <nav class="navbar">
+      <div class="nav-container">
+        <a href="/" class="nav-brand">Research Paper Chatbot</a>
+        <div class="nav-links">
+          <a href="/" class="nav-link">Home</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container">
+      <div class="upload-section">
+        <h1>Upload Your Research Paper</h1>
+        <p class="section-description">
+          Upload a PDF or DOCX file to get started
+        </p>
+
+        <div class="upload-box" id="uploadBox">
+          <div class="upload-icon">📁</div>
+          <p class="upload-text">
+            Drag and drop your file here or click to browse
+          </p>
+          <p class="upload-hint">Supported formats: PDF, DOCX (Max 16MB)</p>
+          <input type="file" id="fileInput" accept=".pdf,.docx" hidden />
+        </div>
+
+        <div
+          id="processingMessage"
+          class="processing-message"
+          style="display: none"
+        >
+          <div class="spinner"></div>
+          <p>Processing document...</p>
+        </div>
+
+        <div id="successMessage" class="success-message" style="display: none">
+          <div class="success-icon">✓</div>
+          <p>Document processed successfully!</p>
+          <div class="action-buttons">
+            <a href="/summary" class="btn btn-primary">View Summary</a>
+            <a href="/chat" class="btn btn-secondary">Start Chatting</a>
+          </div>
+        </div>
+
+        <div
+          id="errorMessage"
+          class="error-message"
+          style="display: none"
+        ></div>
+      </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  </body>
+</html>
