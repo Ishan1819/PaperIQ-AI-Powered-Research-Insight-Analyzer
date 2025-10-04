@@ -4,7 +4,7 @@ from werkzeug.utils import secure_filename
 from backend import (
     extract_text_from_pdf, 
     extract_text_from_docx, 
-    extract_sections,
+    extract_sections_precise,
     simple_summarize,
     retrieve_paragraph_answer
 )
@@ -56,19 +56,22 @@ def upload_file():
         file.save(filepath)
         
         try:
+            # Extract text with page metadata
             if filename.endswith('.pdf'):
-                text = extract_text_from_pdf(filepath)
+                full_text, pages_data = extract_text_from_pdf(filepath)
             elif filename.endswith('.docx'):
-                text = extract_text_from_docx(filepath)
+                full_text, pages_data = extract_text_from_docx(filepath)
             else:
                 return jsonify({'error': 'Unsupported file format'}), 400
             
-            sections = extract_sections(text)
+            # Extract sections with page metadata
+            sections = extract_sections_precise(pages_data)
             
             # Store in global dictionary instead of session
             doc_id = 'current_document'
             document_storage[doc_id] = {
-                'full_text': text,
+                'full_text': full_text,
+                'pages_data': pages_data,
                 'sections': sections,
                 'filename': filename
             }
@@ -78,6 +81,7 @@ def upload_file():
             session['has_document'] = True
             session.modified = True
             
+            # Clean up uploaded file
             os.remove(filepath)
             
             return jsonify({
