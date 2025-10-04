@@ -424,3 +424,481 @@ if uploaded_file:
                 st.markdown(f"**Q{len(st.session_state.history)-i}:** {chat['query']}")
                 st.markdown(f"**A:** {chat['answer']}")
                 st.markdown("---")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# import re
+# import fitz  # PyMuPDF
+# import streamlit as st
+# import nltk   
+# import math
+# import numpy as np
+
+# from sklearn.feature_extraction.text import TfidfVectorizer
+# from sklearn.metrics.pairwise import cosine_similarity
+
+# from nltk.corpus import stopwords, wordnet
+# from nltk.stem import WordNetLemmatizer
+# from nltk.tokenize import sent_tokenize, word_tokenize
+
+# from io import BytesIO
+# from docx import Document
+
+# # ------------------------
+# # NLTK setup
+# # ------------------------
+# try:
+#     nltk.data.find('tokenizers/punkt')
+#     nltk.data.find('taggers/averaged_perceptron_tagger')
+#     nltk.data.find('corpora/wordnet')
+#     nltk.data.find('corpora/stopwords')
+# except LookupError:
+#     nltk.download('punkt', quiet=True)
+#     nltk.download('averaged_perceptron_tagger', quiet=True)
+#     nltk.download('wordnet', quiet=True)
+#     nltk.download('stopwords', quiet=True)
+#     nltk.download('omw-1.4', quiet=True)
+
+# stop_words = set(stopwords.words("english"))
+# lemmatizer = WordNetLemmatizer()
+
+# # ------------------------
+# # Preprocessing Utilities
+# # ------------------------
+# def get_wordnet_pos(tag: str):
+#     if tag.startswith("J"):
+#         return wordnet.ADJ
+#     elif tag.startswith("V"):
+#         return wordnet.VERB
+#     elif tag.startswith("N"):
+#         return wordnet.NOUN
+#     elif tag.startswith("R"):
+#         return wordnet.ADV
+#     else:
+#         return wordnet.NOUN
+
+# def preprocess_sentence(sentence: str) -> str:
+#     sentence = ' '.join([w for w in sentence.split() 
+#                         if not (w.replace('.', '').isdigit() or w.strip('()').isdigit())])
+#     words = word_tokenize(sentence.lower())
+#     pos_tags = nltk.pos_tag(words)
+#     lemmatized = [lemmatizer.lemmatize(word, get_wordnet_pos(tag)) 
+#                   for word, tag in pos_tags if word.isalpha() and word not in stop_words]
+#     return " ".join(lemmatized)
+
+# def clean_section_content(text: str) -> str:
+#     lines = []
+#     for line in text.split('\n'):
+#         line = line.strip()
+#         line = ' '.join([w for w in line.split() 
+#                         if not (w.replace('.', '').isdigit() or w.strip('()').isdigit())])
+#         if line:
+#             lines.append(line)
+#     return ' '.join(lines)
+
+# # ------------------------
+# # Extract text from PDF/DOCX
+# # ------------------------
+# def extract_text_from_pdf(pdf_file) -> str:
+#     doc = fitz.open(stream=pdf_file.read(), filetype="pdf")
+#     full_text = []
+#     for page in doc:
+#         text = page.get_text()
+#         text = text.replace("\n\n", "[PARAGRAPH]").replace("\n", " ").replace("[PARAGRAPH]", "\n\n")
+#         full_text.append(text)
+#     return " ".join(full_text)
+
+# def extract_text_from_docx(docx_file) -> str:
+#     doc = Document(BytesIO(docx_file.read()))
+#     full_text = []
+#     for para in doc.paragraphs:
+#         full_text.append(para.text)
+#     return "\n".join(full_text)
+
+# # ------------------------
+# # Section Extraction
+# # ------------------------
+# def extract_sections(text: str) -> dict:
+#     sections = {}
+#     current_section = "Main"
+#     current_content = []
+#     lines = text.split("\n")
+
+#     for line in lines:
+#         line = line.strip()
+#         if not line:
+#             continue
+#         if line.isupper() or line.endswith(":"):
+#             if current_content:
+#                 section_text = " ".join(current_content)
+#                 clean_text = clean_section_content(section_text)
+#                 paragraphs = split_into_paragraphs(clean_text)
+#                 sections[current_section] = paragraphs
+#             current_section = clean_section_content(line.rstrip(":"))
+#             current_content = []
+#         else:
+#             current_content.append(line)
+
+#     if current_content:
+#         section_text = " ".join(current_content)
+#         clean_text = clean_section_content(section_text)
+#         paragraphs = split_into_paragraphs(clean_text)
+#         sections[current_section] = paragraphs
+
+#     return sections
+
+# def split_into_paragraphs(clean_text: str):
+#     chunk_size = 200
+#     paragraphs = []
+#     sentences = sent_tokenize(clean_text)
+
+#     sentences = sentences[1:] if len(sentences) > 1 else []
+#     current_para = []
+#     current_length = 0
+
+#     for sentence in sentences:
+#         current_para.append(sentence)
+#         current_length += len(sentence) + 1
+
+#         if current_length >= chunk_size:
+#             chunk_text = ' '.join(current_para)
+#             paragraphs.append(chunk_text)
+#             current_para = []
+#             current_length = 0
+
+#     if current_para:
+#         paragraphs.append(' '.join(current_para))
+
+#     return paragraphs
+
+# # ------------------------
+# # Regex-based topic extraction
+# # ------------------------
+# def extract_topic_from_query(query: str) -> str:
+#     query_lower = query.lower()
+#     query_cleaned = re.sub(r'\b(what is|what are|define|tell me about|explain|describe|give me|show me)\b', '', query_lower, flags=re.IGNORECASE)
+#     query_cleaned = re.sub(r'\b(the|a|an|of|in|on|at|to|for)\b', '', query_cleaned)
+#     query_cleaned = query_cleaned.strip('? .')
+#     return query_cleaned.strip()
+
+# # ------------------------
+# # Regex + TF-IDF based paragraph matching
+# # ------------------------
+# def find_topic_in_document(topic: str, full_text: str, sections: dict) -> tuple:
+#     topic_normalized = topic.strip().lower()
+#     all_paragraphs = [para for paras in sections.values() for para in paras]
+
+#     pattern1 = re.compile(rf'\b{re.escape(topic_normalized)}[:\s].*?key features', re.IGNORECASE | re.DOTALL)
+#     pattern2 = re.compile(rf'(?:^|\.\s+){re.escape(topic_normalized)}\s*:', re.IGNORECASE)
+#     pattern3 = re.compile(rf'\b{re.escape(topic_normalized)}\s+(is|are|was|were)\b', re.IGNORECASE)
+#     pattern4 = re.compile(rf'(?:^|\n){re.escape(topic_normalized)}\b', re.IGNORECASE)
+#     pattern5 = re.compile(rf'\b{re.escape(topic_normalized)}\b', re.IGNORECASE)
+
+#     matches = []
+
+#     for para_idx, para in enumerate(all_paragraphs):
+#         score = 0
+#         match_type = None
+
+#         if pattern1.search(para):
+#             score = 100
+#             match_type = "complete_section"
+#         elif pattern2.search(para):
+#             score = 80
+#             match_type = "definition"
+#         elif pattern3.search(para):
+#             score = 60
+#             match_type = "is_pattern"
+#         elif pattern4.search(para):
+#             score = 40
+#             match_type = "sentence_start"
+#         elif pattern5.search(para):
+#             count = len(pattern5.findall(para))
+#             score = 20 * count
+#             match_type = "general"
+
+#         if score > 0:
+#             matches.append((para, match_type, score, para_idx))
+
+#     if matches:
+#         matches.sort(key=lambda x: x[2], reverse=True)
+#         best_match, best_type, best_score, idx = matches[0]
+#         return True, best_match, best_type
+
+#     return False, None, None
+
+# # ------------------------
+# # Formatting & Natural Response
+# # ------------------------
+# def generate_natural_response(query: str, extracted_content: str, topic: str) -> str:
+#     query_lower = query.lower()
+#     if any(word in query_lower for word in ['what is', 'what are', 'define', 'meaning']):
+#         return f"{topic.title()} is {extracted_content}" if topic else extracted_content
+#     elif any(word in query_lower for word in ['key features', 'features', 'characteristics']):
+#         return f"The key features of {topic.title()} include: {extracted_content}" if topic else extracted_content
+#     elif any(word in query_lower for word in ['how does', 'how do', 'working', 'works']):
+#         return f"{topic.title()} works as follows: {extracted_content}" if topic else extracted_content
+#     elif 'why' in query_lower:
+#         return f"Regarding why {topic}: {extracted_content}" if topic else extracted_content
+#     elif any(word in query_lower for word in ['list', 'enumerate', 'what are']):
+#         return f"Here are the details about {topic}: {extracted_content}" if topic else extracted_content
+#     else:
+#         return f"Regarding {topic}: {extracted_content}" if topic else extracted_content
+
+# def format_response(query: str, paragraph: str, match_type: str, topic: str) -> str:
+#     query_lower = query.lower()
+
+#     # Determine query type
+#     is_definition_query = any(word in query_lower for word in ['what is', 'what are', 'define', 'definition', 'meaning'])
+#     is_features_query = any(word in query_lower for word in ['key features', 'features', 'characteristics', 'properties'])
+#     is_how_query = any(word in query_lower for word in ['how', 'working', 'works', 'process', 'mechanism', 'operation'])
+#     is_lit_query = any(word in query_lower for word in ['literature review', 'related work', 'background', 'previous work'])
+
+#     sentences = sent_tokenize(paragraph)
+
+#     if is_definition_query:
+#         for sentence in sentences:
+#             if re.search(rf'\b{re.escape(topic)}\s+(is|are)\b', sentence, re.IGNORECASE):
+#                 idx = sentences.index(sentence)
+#                 return ' '.join(sentences[idx:min(idx+2, len(sentences))])
+#         return ' '.join(sentences[:3])
+
+#     elif is_features_query:
+#         feature_sentences = []
+#         for sent in sentences:
+#             if re.search(rf'\b{re.escape(topic)}\s+(is|are)\b', sent, re.IGNORECASE):
+#                 continue
+#             if len(sent) < 200 or any(word in sent.lower() for word in ['support', 'provide', 'include', 'enable', 'feature']):
+#                 feature_sentences.append(sent)
+#         return ' '.join(feature_sentences[:6]) if feature_sentences else ' '.join(sentences[1:5])
+
+#     elif is_how_query:
+#         # Extract more sentences for working/process queries
+#         return ' '.join(sentences[:min(8, len(sentences))])
+
+#     elif is_lit_query:
+#         # Extract more sentences for literature review or related work
+#         return ' '.join(sentences[:min(10, len(sentences))])
+
+#     else:
+#         # General fallback
+#         return ' '.join(sentences[:5]) if match_type=="complete_section" else ' '.join(sentences[:3])
+
+
+# def simple_summarize(text, summary_ratio=0.3):
+#     sentences = sent_tokenize(text)
+#     cleaned_sentences = []
+#     for s in sentences:
+#         words = word_tokenize(s.lower())
+#         cleaned_sent = [w for w in words if w.isalpha() and w not in stop_words]
+#         cleaned_sentences.append(cleaned_sent)
+#     vocab = set([w for sent in cleaned_sentences for w in sent])
+#     vocab = list(vocab)
+#     idf = {}
+#     total_sentences = len(sentences)
+#     for word in vocab:
+#         count = sum(1 for sent in cleaned_sentences if word in sent)
+#         if count > 0:
+#             idf[word] = math.log(total_sentences / count)
+#     sentence_scores = []
+#     for sent, words in zip(sentences, cleaned_sentences):
+#         tfidf_score = sum((words.count(word)/len(words))*idf.get(word,0) for word in words)
+#         sentence_scores.append((sent, tfidf_score))
+#     num_sentences = max(1, int(len(sentences)*summary_ratio))
+#     ranked = sorted(sentence_scores, key=lambda x:x[1], reverse=True)
+#     selected = [item[0] for item in ranked[:num_sentences]]
+#     return " ".join(selected)
+
+# # ------------------------
+# # Paragraph Answer Retrieval
+# # ------------------------
+# def retrieve_paragraph_answer(user_query: str, sections: dict, full_text: str, threshold: float=0.15) -> str:
+#     topic = extract_topic_from_query(user_query)
+
+#     if topic:
+#         found, paragraph, match_type = find_topic_in_document(topic, full_text, sections)
+#         if found:
+#             extracted_content = format_response(user_query, paragraph, match_type, topic)
+#             return generate_natural_response(user_query, extracted_content, topic)
+
+#     all_paragraphs = [para for paras in sections.values() for para in paras]
+#     all_sentences = []
+#     sentence_to_para_idx = {}
+
+#     for para_idx, paragraph in enumerate(all_paragraphs):
+#         sentences = sent_tokenize(paragraph)
+#         for sentence in sentences:
+#             sentence_to_para_idx[len(all_sentences)] = para_idx
+#             all_sentences.append(sentence)
+
+#     if not all_sentences:
+#         return "No content found in the document."
+
+#     processed_sentences = [preprocess_sentence(s) for s in all_sentences]
+#     processed_query = preprocess_sentence(user_query)
+
+#     if not processed_query.strip():
+#         return "Please provide a more specific query."
+
+#     vectorizer = TfidfVectorizer()
+#     vectors = vectorizer.fit_transform([processed_query] + processed_sentences)
+#     similarity_scores = cosine_similarity(vectors[0:1], vectors[1:]).flatten()
+#     best_sentence_idx = similarity_scores.argmax()
+#     best_score = similarity_scores[best_sentence_idx]
+
+#     if best_score > threshold:
+#         best_para_idx = sentence_to_para_idx[best_sentence_idx]
+#         retrieved = all_paragraphs[best_para_idx]
+#         extracted_content = format_response(user_query, retrieved, "general", topic)
+#         return generate_natural_response(user_query, extracted_content, topic)
+#     else:
+#         return "No relevant information found. Try rephrasing your question."
+
+# # ------------------------
+# # Rule-based NER extractor
+# # ------------------------
+# def extract_entities(text: str) -> list:
+#     entities = []
+
+#     # TASK extraction (we propose / this paper ...)
+#     task_pattern = r"(we propose|we present|this paper|this study)\s+(.*?)(?=\.|,|;)"
+#     for match in re.finditer(task_pattern, text, re.IGNORECASE):
+#         entities.append({"text": match.group(2).strip(), "label": "TASK"})
+
+#     # METHOD extraction (method, approach, technique, framework)
+#     method_pattern = r"(method|approach|technique|framework)\s+(?:is|was|used|proposed)?\s*(.*?)(?=\.|,|;)"
+#     for match in re.finditer(method_pattern, text, re.IGNORECASE):
+#         entities.append({"text": match.group(2).strip(), "label": "METHOD"})
+
+#     # DATASET extraction (common datasets + pattern)
+#     dataset_list = ["MNIST", "ImageNet", "CIFAR-10", "CIFAR-100", "COCO"]
+#     for ds in dataset_list:
+#         if ds.lower() in text.lower():
+#             entities.append({"text": ds, "label": "DATASET"})
+
+#     # RESULT extraction (achieved / accuracy / performance)
+#     result_pattern = r"(achieved|obtained|accuracy of|performance of)\s+(.*?)(?=\.|,|;)"
+#     for match in re.finditer(result_pattern, text, re.IGNORECASE):
+#         entities.append({"text": match.group(2).strip(), "label": "RESULT"})
+
+#     # CONCLUSION extraction
+#     conclusion_pattern = r"(in conclusion|to summarize|we conclude|our findings)\s+(.*?)(?=\.|,|;)"
+#     for match in re.finditer(conclusion_pattern, text, re.IGNORECASE):
+#         entities.append({"text": match.group(2).strip(), "label": "CONCLUSION"})
+
+#     # ABSTRACT extraction (fallback if no conclusion)
+#     abstract_pattern = r"(abstract)\s*[:\-]?\s*(.*?)(?=\.|\n)"
+#     for match in re.finditer(abstract_pattern, text, re.IGNORECASE | re.DOTALL):
+#         entities.append({"text": match.group(2).strip(), "label": "ABSTRACT"})
+
+#     return entities
+
+
+# def retrieve_with_entities(query: str, sections: dict, full_text: str):
+#     all_text = " ".join([para for paras in sections.values() for para in paras])
+#     entities = extract_entities(all_text)
+#     q = query.lower()
+
+#     # Method queries
+#     if "method" in q or "approach" in q:
+#         methods = [e["text"] for e in entities if e["label"] == "METHOD"]
+#         if methods:
+#             return f"The methods used in this paper are: {', '.join(methods)}"
+
+#     # Dataset queries
+#     if "dataset" in q:
+#         datasets = [e["text"] for e in entities if e["label"] == "DATASET"]
+#         if datasets:
+#             return f"The datasets mentioned are: {', '.join(datasets)}"
+
+#     # Results / accuracy / performance queries
+#     if "result" in q or "accuracy" in q or "performance" in q:
+#         results = [e["text"] for e in entities if e["label"] == "RESULT"]
+#         if results:
+#             return f"The results reported include: {', '.join(results)}"
+
+#     # Conclusion / summary / paper-about queries
+#     if "conclusion" in q or "summary" in q or "paper about" in q or "what is this paper" in q:
+#         conclusions = [e["text"] for e in entities if e["label"] == "CONCLUSION"]
+#         if conclusions:
+#             return f"In conclusion, {conclusions[0]}"
+#         # fallback to abstract if no conclusion
+#         abstracts = [e["text"] for e in entities if e["label"] == "ABSTRACT"]
+#         if abstracts:
+#             return f"This paper is about: {abstracts[0]}"
+#         # fallback to task description
+#         tasks = [e["text"] for e in entities if e["label"] == "TASK"]
+#         if tasks:
+#             return f"This paper addresses: {tasks[0]}"
+
+#     # fallback: original regex + TF-IDF method
+#     return retrieve_paragraph_answer(query, sections, full_text)
+
+
+# # ------------------------
+# # Streamlit UI
+# # ------------------------
+# st.set_page_config(page_title="Document Analyzer Chatbot", layout="wide")
+# st.title("Document Analyzer Chatbot")
+
+# if "history" not in st.session_state:
+#     st.session_state.history = []
+# if "full_text" not in st.session_state:
+#     st.session_state.full_text = ""
+# if "sections" not in st.session_state:
+#     st.session_state.sections = {}
+
+# uploaded_file = st.file_uploader("Upload a PDF or DOCX", type=["pdf", "docx"])
+
+# if uploaded_file:
+#     with st.spinner("Processing document..."):
+#         if uploaded_file.type == "application/pdf":
+#             text = extract_text_from_pdf(uploaded_file)
+#         elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+#             text = extract_text_from_docx(uploaded_file)
+#         st.session_state.full_text = text
+#         st.session_state.sections = extract_sections(text)
+#     st.success("Document processed successfully!")
+
+#     query = st.text_input("Ask a question about the document:")
+#     if query:
+#         answer = retrieve_with_entities(query, st.session_state.sections, st.session_state.full_text)
+#         st.session_state.history.append({"query": query, "answer": answer})
+
+#     if st.session_state.history:
+#         st.subheader("Chat History")
+#         for i, chat in enumerate(reversed(st.session_state.history)):
+#             with st.container():
+#                 st.markdown(f"**Q{len(st.session_state.history)-i}:** {chat['query']}")
+#                 st.markdown(f"**A:** {chat['answer']}")
+#                 st.markdown("---")
