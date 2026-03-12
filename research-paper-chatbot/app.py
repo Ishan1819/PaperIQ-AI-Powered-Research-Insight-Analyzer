@@ -9,16 +9,37 @@ from backend import (
     retrieve_paragraph_answer
 )
 
+# Import database and authentication modules
+from database.db import init_db_pool, close_db_pool, test_connection
+from routes.auth_routes import auth_bp
+from routes.chat_routes import chat_bp
+
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-change-this-in-production'
-app.config['UPLOAD_FOLDER'] = 'static/uploads'
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
+
+# Security configuration - use environment variable in production
+app.secret_key = os.getenv('SECRET_KEY', 'your-secret-key-change-this-in-production')
+
+# Session configuration
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SESSION_PERMANENT'] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour
+app.config['SESSION_COOKIE_SECURE'] = os.getenv('FLASK_ENV') == 'production'  # HTTPS only in production
+app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access to session cookie
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
+
+# Upload configuration
+app.config['UPLOAD_FOLDER'] = 'static/uploads'
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
 
 # Create upload folder if it doesn't exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# Register authentication and chat blueprints
+app.register_blueprint(auth_bp)
+app.register_blueprint(chat_bp)
+
+# Initialize database connection pool
+init_db_pool(minconn=2, maxconn=10)
 
 ALLOWED_EXTENSIONS = {'pdf', 'docx'}
 
@@ -160,6 +181,9 @@ def ask_question():
             doc_data['full_text']
         )
         
+        # Optional: Save to chat history if user is logged in
+        # This can be done on the frontend by calling /chat/save endpoint
+        
         return jsonify({'answer': answer})
     except Exception as e:
         return jsonify({'error': f'Error processing question: {str(e)}'}), 500
@@ -176,5 +200,27 @@ def clear_document():
     return jsonify({'success': True})
 
 
+# Application lifecycle hooks
+@app.before_request
+def before_first_request():
+    """Test database connection on first request"""
+    if not hasattr(app, 'db_tested'):
+        if test_connection():
+            print("✓ Database connection verified")
+        else:
+            print("✗ Warning: Database connection failed")
+        app.db_tested = True
+
+
+@app.teardown_appcontext
+def shutdown_session(exception=None):
+    """Clean up database connections when app context ends"""
+    pass  # Connection pool handles cleanup automatically
+
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    try:
+        app.run(debug=True, host='0.0.0.0', port=5000)
+    finally:
+        # Close database pool on shutdown
+        close_db_pool()
