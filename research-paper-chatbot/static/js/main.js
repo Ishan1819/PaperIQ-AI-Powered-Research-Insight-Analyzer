@@ -79,7 +79,15 @@ document.addEventListener("DOMContentLoaded", function () {
         processingMessage.style.display = "none";
         successMessage.style.display = "block";
       } else {
-        showError(data.error || "Failed to upload file");
+        // Check if authentication error
+        if (response.status === 401) {
+          showError("Session expired. Please login again.");
+          setTimeout(() => {
+            window.location.href = "/login";
+          }, 2000);
+        } else {
+          showError(data.error || "Failed to upload file");
+        }
       }
     } catch (error) {
       showError("Error uploading file: " + error.message);

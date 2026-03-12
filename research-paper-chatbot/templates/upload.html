@@ -15,6 +15,9 @@
         <a href="/" class="nav-brand">Research Paper Chatbot</a>
         <div class="nav-links">
           <a href="/" class="nav-link">Home</a>
+          <button id="logoutBtn" class="nav-link logout-btn" style="background: none; border: none; color: inherit; cursor: pointer; font-size: inherit; padding: 0.5rem 1rem;">
+            🚪 Logout
+          </button>
         </div>
       </div>
     </nav>
@@ -62,5 +65,47 @@
     </div>
 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+      // Check authentication on page load
+      async function checkAuth() {
+        try {
+          const response = await fetch("/me");
+          const data = await response.json();
+
+          if (!data.authenticated) {
+            // Not logged in, redirect to login page
+            window.location.href = "/login";
+          }
+        } catch (error) {
+          console.error("Auth check error:", error);
+          // On error, redirect to login
+          window.location.href = "/login";
+        }
+      }
+
+      // Logout functionality
+      const logoutBtn = document.getElementById("logoutBtn");
+      if (logoutBtn) {
+        logoutBtn.addEventListener("click", async () => {
+          try {
+            const response = await fetch("/logout", {
+              method: "POST",
+            });
+
+            if (response.ok) {
+              // Logout successful, redirect to login
+              window.location.href = "/login";
+            }
+          } catch (error) {
+            console.error("Logout error:", error);
+            // Even on error, redirect to login
+            window.location.href = "/login";
+          }
+        });
+      }
+
+      // Call auth check when page loads
+      checkAuth();
+    </script>
   </body>
 </html>

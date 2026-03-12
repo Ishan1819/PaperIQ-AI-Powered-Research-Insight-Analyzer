@@ -51,18 +51,56 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def require_login():
+    """
+    Helper function to check if user is logged in.
+    Returns True if logged in, False otherwise.
+    """
+    return 'user_id' in session
+
+
 @app.route('/')
 def landing():
+    """
+    Landing page - protected route.
+    Redirects to login if user is not authenticated.
+    """
+    if not require_login():
+        return redirect(url_for('login_page'))
     return render_template('landing.html')
+
+
+@app.route('/login')
+def login_page():
+    """
+    Login page route.
+    If user is already logged in, redirect to home.
+    """
+    if require_login():
+        return redirect(url_for('landing'))
+    return render_template('login.html')
 
 
 @app.route('/upload')
 def upload_page():
+    """
+    Upload page - protected route.
+    Requires user to be logged in.
+    """
+    if not require_login():
+        return redirect(url_for('login_page'))
     return render_template('upload.html')
 
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
+    """
+    Handle file upload - protected route.
+    Requires user to be logged in.
+    """
+    if not require_login():
+        return jsonify({'error': 'Authentication required'}), 401
+    
     if 'file' not in request.files:
         return jsonify({'error': 'No file uploaded'}), 400
     
@@ -121,6 +159,13 @@ def upload_file():
 
 @app.route('/summary')
 def summary_page():
+    """
+    Summary page - protected route.
+    Requires user to be logged in and have a document uploaded.
+    """
+    if not require_login():
+        return redirect(url_for('login_page'))
+    
     if not session.get('has_document'):
         return redirect(url_for('upload_page'))
     return render_template('summary.html')
@@ -128,6 +173,13 @@ def summary_page():
 
 @app.route('/generate-summary', methods=['POST'])
 def generate_summary():
+    """
+    Generate document summary - protected route.
+    Requires user to be logged in.
+    """
+    if not require_login():
+        return jsonify({'error': 'Authentication required'}), 401
+    
     if not session.get('has_document'):
         return jsonify({'error': 'No document uploaded'}), 400
     
@@ -149,6 +201,13 @@ def generate_summary():
 
 @app.route('/chat')
 def chat_page():
+    """
+    Chat page - protected route.
+    Requires user to be logged in and have a document uploaded.
+    """
+    if not require_login():
+        return redirect(url_for('login_page'))
+    
     if not session.get('has_document'):
         return redirect(url_for('upload_page'))
     
@@ -160,6 +219,14 @@ def chat_page():
 
 @app.route('/ask', methods=['POST'])
 def ask_question():
+    """
+    Handle Q&A requests - protected route.
+    Requires user to be logged in.
+    Saves chat history to database.
+    """
+    if not require_login():
+        return jsonify({'error': 'Authentication required'}), 401
+    
     if not session.get('has_document'):
         return jsonify({'error': 'No document uploaded'}), 400
     

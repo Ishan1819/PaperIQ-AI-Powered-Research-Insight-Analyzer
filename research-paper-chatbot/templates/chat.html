@@ -20,6 +20,9 @@
           <a href="/" class="nav-link">Home</a>
           <a href="/upload" class="nav-link">Upload</a>
           <a href="/summary" class="nav-link">Summary</a>
+          <button id="logoutBtn" class="nav-link logout-btn" style="background: none; border: none; color: inherit; cursor: pointer; font-size: inherit; padding: 0.5rem 1rem;">
+            🚪 Logout
+          </button>
         </div>
       </div>
     </nav>
@@ -64,10 +67,70 @@
     </div>
 
     <script>
+      // DOM elements
       const chatForm = document.getElementById("chatForm");
       const questionInput = document.getElementById("questionInput");
       const chatMessages = document.getElementById("chatMessages");
       const sendBtn = document.getElementById("sendBtn");
+      const logoutBtn = document.getElementById("logoutBtn");
+
+      // Check authentication on page load
+      async function checkAuth() {
+        try {
+          const response = await fetch("/me");
+          const data = await response.json();
+
+          if (!data.authenticated) {
+            // Not logged in, redirect to login page
+            window.location.href = "/login";
+          }
+        } catch (error) {
+          console.error("Auth check error:", error);
+          // On error, redirect to login
+          window.location.href = "/login";
+        }
+      }
+
+      // Call auth check when page loads
+      checkAuth();
+
+      // Logout functionality
+      logoutBtn.addEventListener("click", async () => {
+        try {
+          const response = await fetch("/logout", {
+            method: "POST",
+          });
+
+          if (response.ok) {
+            // Logout successful, redirect to login
+            window.location.href = "/login";
+          }
+        } catch (error) {
+          console.error("Logout error:", error);
+          // Even on error, redirect to login
+          window.location.href = "/login";
+        }
+      });
+
+      // Save chat message to database
+      async function saveChatMessage(userMessage, aiResponse) {
+        try {
+          await fetch("/chat/save", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              user_message: userMessage,
+              ai_response: aiResponse,
+            }),
+          });
+          // Silently save - no need to show user
+        } catch (error) {
+          console.error("Error saving chat message:", error);
+          // Don't disrupt user experience if saving fails
+        }
+      }
 
       function addMessage(text, isUser) {
         const messageDiv = document.createElement("div");
@@ -130,9 +193,21 @@
           removeTypingIndicator();
 
           if (response.ok) {
-            addMessage(data.answer, false);
+            const answer = data.answer;
+            addMessage(answer, false);
+
+            // Save chat message to database
+            saveChatMessage(question, answer);
           } else {
-            addMessage(data.error || "Sorry, I encountered an error.", false);
+            const errorMsg = data.error || "Sorry, I encountered an error.";
+            addMessage(errorMsg, false);
+
+            // Check if authentication error
+            if (response.status === 401) {
+              setTimeout(() => {
+                window.location.href = "/login";
+              }, 2000);
+            }
           }
         } catch (error) {
           removeTypingIndicator();

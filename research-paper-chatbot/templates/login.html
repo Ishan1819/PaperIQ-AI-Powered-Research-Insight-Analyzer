@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login - Research Paper Chatbot</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+    <style>
+      /* Login-specific styles */
+      .login-container {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 20px;
+      }
+
+      .login-box {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        padding: 40px;
+        width: 100%;
+        max-width: 420px;
+        animation: slideIn 0.4s ease-out;
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(-20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .login-header {
+        text-align: center;
+        margin-bottom: 30px;
+      }
+
+      .login-icon {
+        font-size: 48px;
+        margin-bottom: 10px;
+      }
+
+      .login-title {
+        font-size: 28px;
+        color: #333;
+        margin: 0 0 8px 0;
+        font-weight: 600;
+      }
+
+      .login-subtitle {
+        color: #666;
+        font-size: 14px;
+        margin: 0;
+      }
+
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      .form-label {
+        display: block;
+        margin-bottom: 8px;
+        color: #333;
+        font-weight: 500;
+        font-size: 14px;
+      }
+
+      .form-input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 15px;
+        transition: all 0.3s ease;
+        box-sizing: border-box;
+      }
+
+      .form-input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      }
+
+      .login-button {
+        width: 100%;
+        padding: 14px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 10px;
+      }
+
+      .login-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+      }
+
+      .login-button:active {
+        transform: translateY(0);
+      }
+
+      .login-button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .error-message {
+        background: #fee;
+        color: #c33;
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        font-size: 14px;
+        display: none;
+        border-left: 4px solid #c33;
+      }
+
+      .success-message {
+        background: #efe;
+        color: #3c3;
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        font-size: 14px;
+        display: none;
+        border-left: 4px solid #3c3;
+      }
+
+      .info-text {
+        text-align: center;
+        margin-top: 20px;
+        color: #666;
+        font-size: 13px;
+      }
+
+      .loading-spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top-color: white;
+        animation: spin 0.8s linear infinite;
+        margin-right: 8px;
+        vertical-align: middle;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="login-container">
+      <div class="login-box">
+        <div class="login-header">
+          <div class="login-icon">🎓</div>
+          <h1 class="login-title">Welcome Back</h1>
+          <p class="login-subtitle">Sign in to access your research papers</p>
+        </div>
+
+        <div id="errorMessage" class="error-message"></div>
+        <div id="successMessage" class="success-message"></div>
+
+        <form id="loginForm">
+          <div class="form-group">
+            <label for="email" class="form-label">Email Address</label>
+            <input
+              type="email"
+              id="email"
+              class="form-input"
+              placeholder="Enter your email"
+              required
+              autocomplete="email"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="password" class="form-label">Password</label>
+            <input
+              type="password"
+              id="password"
+              class="form-input"
+              placeholder="Enter your password"
+              required
+              autocomplete="current-password"
+              minlength="6"
+            />
+          </div>
+
+          <button type="submit" id="loginButton" class="login-button">
+            <span id="buttonText">Sign In / Sign Up</span>
+          </button>
+        </form>
+
+        <p class="info-text">
+          💡 New user? Just enter your email and password to create an account
+        </p>
+      </div>
+    </div>
+
+    <script>
+      // DOM elements
+      const loginForm = document.getElementById("loginForm");
+      const emailInput = document.getElementById("email");
+      const passwordInput = document.getElementById("password");
+      const loginButton = document.getElementById("loginButton");
+      const buttonText = document.getElementById("buttonText");
+      const errorMessage = document.getElementById("errorMessage");
+      const successMessage = document.getElementById("successMessage");
+
+      // Hide messages
+      function hideMessages() {
+        errorMessage.style.display = "none";
+        successMessage.style.display = "none";
+      }
+
+      // Show error message
+      function showError(message) {
+        hideMessages();
+        errorMessage.textContent = message;
+        errorMessage.style.display = "block";
+      }
+
+      // Show success message
+      function showSuccess(message) {
+        hideMessages();
+        successMessage.textContent = message;
+        successMessage.style.display = "block";
+      }
+
+      // Set loading state
+      function setLoading(isLoading) {
+        loginButton.disabled = isLoading;
+        if (isLoading) {
+          buttonText.innerHTML =
+            '<span class="loading-spinner"></span>Processing...';
+        } else {
+          buttonText.textContent = "Sign In / Sign Up";
+        }
+      }
+
+      // Handle form submission
+      loginForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        hideMessages();
+
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+
+        // Basic validation
+        if (!email || !password) {
+          showError("Please enter both email and password");
+          return;
+        }
+
+        if (password.length < 6) {
+          showError("Password must be at least 6 characters long");
+          return;
+        }
+
+        setLoading(true);
+
+        try {
+          // Send POST request to /auth endpoint
+          const response = await fetch("/auth", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ email, password }),
+          });
+
+          const data = await response.json();
+
+          if (response.ok && data.success) {
+            // Success! Show message and redirect
+            const action = data.action === "login" ? "Login" : "Account created";
+            showSuccess(`${action} successful! Redirecting...`);
+
+            // Redirect to home page after short delay
+            setTimeout(() => {
+              window.location.href = "/";
+            }, 1000);
+          } else {
+            // Show error from server
+            showError(data.error || "Authentication failed. Please try again.");
+            setLoading(false);
+          }
+        } catch (error) {
+          console.error("Login error:", error);
+          showError("Unable to connect to server. Please try again.");
+          setLoading(false);
+        }
+      });
+
+      // Check if already logged in (optional - redirect if already authenticated)
+      async function checkAuth() {
+        try {
+          const response = await fetch("/check-auth");
+          const data = await response.json();
+
+          if (data.authenticated) {
+            // Already logged in, redirect to home
+            window.location.href = "/";
+          }
+        } catch (error) {
+          console.error("Auth check error:", error);
+        }
+      }
+
+      // Check authentication on page load
+      checkAuth();
+
+      // Auto-focus email input
+      emailInput.focus();
+    </script>
+  </body>
+</html>
