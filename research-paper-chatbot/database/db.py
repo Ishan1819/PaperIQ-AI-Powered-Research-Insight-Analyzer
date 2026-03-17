@@ -2,13 +2,14 @@
 PostgreSQL Database Connection Module
 Provides connection pooling and database utilities for the Flask application.
 """
-
 import psycopg2
 from psycopg2 import pool
 from psycopg2.extras import RealDictCursor
 import os
 from contextlib import contextmanager
+from dotenv import load_dotenv   # ✅ ADD THIS
 
+load_dotenv()  # ✅ ADD THIS
 # Database configuration - read from environment variables
 DB_CONFIG = {
     'host': os.getenv('DB_HOST', 'localhost'),
@@ -17,7 +18,7 @@ DB_CONFIG = {
     'user': os.getenv('DB_USER', 'postgres'),
     'password': os.getenv('DB_PASSWORD', 'password')
 }
-
+print("DB HOST:", os.getenv("DB_HOST"))
 # Connection pool - initialized when the module is loaded
 connection_pool = None
 
