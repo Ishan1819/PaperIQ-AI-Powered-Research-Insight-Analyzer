@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Research Paper Chatbot</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+    <style>
+      .logout-button {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        padding: 10px 20px;
+        background: rgba(255, 255, 255, 0.2);
+        border: 2px solid rgba(255, 255, 255, 0.5);
+        color: white;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+      }
+
+      .logout-button:hover {
+        background: rgba(255, 255, 255, 0.3);
+        border-color: rgba(255, 255, 255, 0.8);
+        transform: translateY(-2px);
+      }
+
+      .user-info {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        color: white;
+        font-size: 14px;
+        background: rgba(255, 255, 255, 0.2);
+        padding: 10px 16px;
+        border-radius: 8px;
+        backdrop-filter: blur(10px);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="landing-container">
+      <!-- User info and logout button -->
+      <div id="userInfo" class="user-info" style="display: none;">
+        👤 <span id="userEmail"></span>
+      </div>
+      <button id="logoutBtn" class="logout-button">
+        🚪 Logout
+      </button>
+
+      <div class="landing-content">
+        <div class="hero-section">
+          <div class="logo-container">
+            <div class="logo-icon">🎓</div>
+          </div>
+          <h1 class="main-title">Research Paper Chatbot</h1>
+          <p class="subtitle">
+            Analyze and chat with your research papers using AI
+          </p>
+          <div class="features">
+            <div class="feature-card">
+              <div class="feature-icon">📄</div>
+              <h3>Upload Documents</h3>
+              <p>Support for PDF and DOCX formats</p>
+            </div>
+            <div class="feature-card">
+              <div class="feature-icon">📊</div>
+              <h3>Smart Summaries</h3>
+              <p>Generate intelligent document summaries</p>
+            </div>
+            <div class="feature-card">
+              <div class="feature-icon">💬</div>
+              <h3>Interactive Chat</h3>
+              <p>Ask questions and get instant answers</p>
+            </div>
+          </div>
+          <a href="/upload" class="cta-button">Get Started</a>
+          <div class="benefits-section">
+            <p class="benefits-text">
+              ✓ Fast Processing ✓ Accurate Analysis ✓ Easy to Use
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Check authentication on page load
+      async function checkAuth() {
+        try {
+          const response = await fetch("/me");
+          
+          // ✅ FIXED: Handle 404 separately from actual errors
+          if (response.status === 404) {
+            console.warn("Auth endpoint not available, redirecting to login");
+            window.location.href = "/login";
+            return;
+          }
+          
+          if (!response.ok) {
+            console.warn("Auth check failed with status:", response.status);
+            window.location.href = "/login";
+            return;
+          }
+          
+          const data = await response.json();
+
+          if (!data.authenticated) {
+            // Not logged in, redirect to login page
+            window.location.href = "/login";
+          } else {
+            // Show user info
+            const userInfo = document.getElementById("userInfo");
+            const userEmail = document.getElementById("userEmail");
+            if (userInfo && userEmail && data.user) {
+              userEmail.textContent = data.user.email;
+              userInfo.style.display = "block";
+            }
+          }
+        } catch (error) {
+          console.error("Auth check error:", error);
+          // ✅ FIXED: Only redirect on network errors, not caught exceptions
+          // This prevents redirect loops from network timeouts
+          if (error instanceof TypeError) {
+            // Network error - safe to redirect
+            window.location.href = "/login";
+          } else {
+            console.error("Unexpected error during auth check");
+          }
+        }
+      }
+
+      // Logout functionality
+      const logoutBtn = document.getElementById("logoutBtn");
+      logoutBtn.addEventListener("click", async () => {
+        try {
+          const response = await fetch("/logout", {
+            method: "POST",
+          });
+
+          if (response.ok) {
+            // Logout successful, redirect to login
+            window.location.href = "/login";
+          }
+        } catch (error) {
+          console.error("Logout error:", error);
+          // Even on error, redirect to login
+          window.location.href = "/login";
+        }
+      });
+
+      // Call auth check when page loads
+      checkAuth();
+    </script>
+  </body>
+</html>
