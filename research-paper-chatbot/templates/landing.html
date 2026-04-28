@@ -91,50 +91,28 @@
     </div>
 
     <script>
-      // Check authentication on page load
-      async function checkAuth() {
+      // ✅ FIXED: Landing page is PUBLIC - no auth check needed
+      // Only show logout button if user is logged in
+      async function loadUserInfo() {
         try {
           const response = await fetch("/me");
           
-          // ✅ FIXED: Handle 404 separately from actual errors
-          if (response.status === 404) {
-            console.warn("Auth endpoint not available, redirecting to login");
-            window.location.href = "/login";
-            return;
-          }
-          
-          if (!response.ok) {
-            console.warn("Auth check failed with status:", response.status);
-            window.location.href = "/login";
-            return;
-          }
-          
-          const data = await response.json();
-
-          if (!data.authenticated) {
-            // Not logged in, redirect to login page
-            window.location.href = "/login";
-          } else {
-            // Show user info
-            const userInfo = document.getElementById("userInfo");
-            const userEmail = document.getElementById("userEmail");
-            if (userInfo && userEmail && data.user) {
-              userEmail.textContent = data.user.email;
-              userInfo.style.display = "block";
+          if (response.ok) {
+            const data = await response.json();
+            if (data.authenticated && data.user) {
+              // Show user info if logged in
+              const userInfo = document.getElementById("userInfo");
+              const userEmail = document.getElementById("userEmail");
+              if (userInfo && userEmail) {
+                userEmail.textContent = data.user.email;
+                userInfo.style.display = "block";
+              }
             }
           }
         } catch (error) {
-          console.error("Auth check error:", error);
-          // ✅ FIXED: Only redirect on network errors, not caught exceptions
-          // This prevents redirect loops from network timeouts
-          if (error instanceof TypeError) {
-            // Network error - safe to redirect
-            window.location.href = "/login";
-          } else {
-            console.error("Unexpected error during auth check");
-          }
+          console.debug("User not logged in");
         }
-      }
+      }      
 
       // Logout functionality
       const logoutBtn = document.getElementById("logoutBtn");
@@ -145,18 +123,17 @@
           });
 
           if (response.ok) {
-            // Logout successful, redirect to login
-            window.location.href = "/login";
+            // Logout successful, redirect to landing
+            window.location.href = "/";
           }
         } catch (error) {
           console.error("Logout error:", error);
-          // Even on error, redirect to login
-          window.location.href = "/login";
+          window.location.href = "/";
         }
       });
 
-      // Call auth check when page loads
-      checkAuth();
+      // Load user info if logged in (but don't redirect)
+      loadUserInfo();
     </script>
   </body>
 </html>

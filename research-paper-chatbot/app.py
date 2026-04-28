@@ -27,7 +27,11 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# ✅ Re-enabled blueprint registration - /me and /check-auth endpoints
+# ✅ No database needed - demo mode with session-only auth
+print("✓ Running in DEMO MODE - No database required")
+print("✓ Just enter any email/password to login")
+
+# ✅ Blueprint registration - /me and auth endpoints
 app.register_blueprint(auth_bp)
 app.register_blueprint(chat_bp)
 

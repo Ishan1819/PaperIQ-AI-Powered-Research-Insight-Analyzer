@@ -74,14 +74,13 @@
       const sendBtn = document.getElementById("sendBtn");
       const logoutBtn = document.getElementById("logoutBtn");
 
-      // Check authentication on page load
+      // ✅ Check authentication on page load - CHAT is PROTECTED
       async function checkAuth() {
         try {
           const response = await fetch("/me");
           
-          // ✅ FIXED: Handle non-200 responses without silently failing
           if (!response.ok) {
-            console.warn("Auth check failed with status:", response.status);
+            console.warn("Not authenticated, redirecting to login");
             window.location.href = "/login";
             return;
           }
@@ -92,16 +91,14 @@
             // Not logged in, redirect to login page
             window.location.href = "/login";
           }
+          // Else: User is authenticated, stay on page
         } catch (error) {
           console.error("Auth check error:", error);
-          // ✅ FIXED: Only redirect on actual network errors
-          if (error instanceof TypeError) {
-            window.location.href = "/login";
-          }
+          window.location.href = "/login";
         }
       }
 
-      // Call auth check when page loads
+      // Check auth when page loads
       checkAuth();
 
       // Logout functionality

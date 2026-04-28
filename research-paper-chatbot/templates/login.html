@@ -312,30 +312,26 @@
         }
       });
 
-      // ✅ FIXED: Use /me endpoint instead of non-existent /check-auth
-      async function checkAuth() {
+      // ✅ FIXED: Check if already logged in, if so redirect to home
+      async function checkIfAlreadyLoggedIn() {
         try {
           const response = await fetch("/me");
           
-          // Only proceed if response is ok
-          if (!response.ok) {
-            return; // User not authenticated, stay on login page
-          }
-          
-          const data = await response.json();
-
-          if (data.authenticated) {
-            // Already logged in, redirect to home
-            window.location.href = "/";
+          if (response.ok) {
+            const data = await response.json();
+            if (data.authenticated) {
+              // Already logged in, redirect to upload page (Get Started)
+              window.location.href = "/upload";
+            }
           }
         } catch (error) {
-          // Network error - user likely not authenticated, stay on login
-          console.debug("Auth check: user not authenticated");
+          // Not logged in, stay on login page
+          console.debug("User not logged in");
         }
       }
 
-      // Check authentication on page load
-      checkAuth();
+      // Check if already logged in on page load
+      checkIfAlreadyLoggedIn();
 
       // Auto-focus email input
       emailInput.focus();

@@ -5,10 +5,6 @@ Handles user login, signup, logout, and user info retrieval.
 
 from flask import Blueprint, request, jsonify, session
 from utils.auth import (
-    get_current_user,
-    get_user_by_email,
-    create_user,
-    verify_password,
     set_session_user,
     clear_session,
     validate_email,
@@ -19,11 +15,14 @@ from utils.auth import (
 # Create a Blueprint for auth routes
 auth_bp = Blueprint('auth', __name__, url_prefix='')
 
+# ✅ DEMO MODE: In-memory user storage (no database needed)
+demo_users = {}
+
 
 @auth_bp.route('/auth', methods=['POST'])
 def authenticate():
     """
-    Single endpoint for both login and signup.
+    ✅ DEMO MODE: Accept any email/password without database.
     
     Request Body:
         {
@@ -32,15 +31,13 @@ def authenticate():
         }
     
     Logic:
-        1. Check if email exists in database
-        2. If exists → verify password (login)
-        3. If not exists → create new user (signup)
+        - Accept any email and password
+        - Store in session
+        - Return success
     
     Returns:
         200: Success with user data
         400: Validation error
-        401: Invalid credentials
-        500: Server error
     """
     try:
         # Get request data
@@ -65,49 +62,26 @@ def authenticate():
         if not is_valid_password:
             return jsonify({'error': password_error}), 400
         
-        # Check if user exists
-        existing_user = get_user_by_email(email)
+        # ✅ DEMO MODE: Just store email in session
+        # Generate a simple user_id based on email hash
+        user_id = abs(hash(email)) % 1000000
         
-        if existing_user:
-            # LOGIN flow - user exists, verify password
-            if verify_password(existing_user['password_hash'], password):
-                # Password is correct - create session
-                set_session_user(existing_user['id'])
-                
-                return jsonify({
-                    'success': True,
-                    'action': 'login',
-                    'message': 'Login successful',
-                    'user': {
-                        'id': existing_user['id'],
-                        'email': existing_user['email'],
-                        'created_at': existing_user['created_at'].isoformat()
-                    }
-                }), 200
-            else:
-                # Password is incorrect
-                return jsonify({'error': 'Invalid email or password'}), 401
+        # Store in in-memory user list
+        demo_users[user_id] = {'id': user_id, 'email': email}
         
-        else:
-            # SIGNUP flow - user doesn't exist, create new user
-            new_user = create_user(email, password)
-            
-            if new_user:
-                # User created successfully - create session
-                set_session_user(new_user['id'])
-                
-                return jsonify({
-                    'success': True,
-                    'action': 'signup',
-                    'message': 'Account created successfully',
-                    'user': {
-                        'id': new_user['id'],
-                        'email': new_user['email'],
-                        'created_at': new_user['created_at'].isoformat()
-                    }
-                }), 200
-            else:
-                return jsonify({'error': 'Failed to create account. Please try again.'}), 500
+        # Create session
+        set_session_user(user_id)
+        
+        return jsonify({
+            'success': True,
+            'action': 'login',
+            'message': 'Logged in successfully!',
+            'user': {
+                'id': user_id,
+                'email': email,
+                'created_at': '2026-04-28'
+            }
+        }), 200
     
     except Exception as e:
         print(f"Authentication error: {e}")
@@ -130,24 +104,38 @@ def logout():
 
 
 @auth_bp.route('/me', methods=['GET'])
-@login_required
 def get_me():
     """
-    Get the currently logged-in user's information.
-    Protected route - requires authentication.
+    ✅ DEMO MODE: Get current logged-in user from session.
+    No database access needed.
     
     Returns:
-        200: User data
-        401: Not authenticated (handled by @login_required decorator)
+        200: User data if authenticated
+        401: Not authenticated
     """
-    user = get_current_user()
+    user_id = session.get('user_id')
+    
+    if not user_id:
+        return jsonify({
+            'authenticated': False,
+            'message': 'Not logged in'
+        }), 401
+    
+    # Get user from in-memory storage
+    user = demo_users.get(user_id)
+    
+    if not user:
+        return jsonify({
+            'authenticated': False,
+            'message': 'User not found'
+        }), 401
     
     return jsonify({
         'authenticated': True,
         'user': {
             'id': user['id'],
             'email': user['email'],
-            'created_at': user['created_at'].isoformat()
+            'created_at': '2026-04-28'
         }
     }), 200
 
@@ -155,25 +143,26 @@ def get_me():
 @auth_bp.route('/check-auth', methods=['GET'])
 def check_auth():
     """
-    Check if a user is currently authenticated.
-    Non-protected version of /me for frontend to check auth state.
+    ✅ DEMO MODE: Check if user is authenticated (from session).
     
     Returns:
         200: Authentication status
     """
-    user = get_current_user()
+    user_id = session.get('user_id')
     
-    if user:
-        return jsonify({
-            'authenticated': True,
-            'user': {
-                'id': user['id'],
-                'email': user['email'],
-                'created_at': user['created_at'].isoformat()
-            }
-        }), 200
-    else:
-        return jsonify({
-            'authenticated': False,
-            'user': None
-        }), 200
+    if user_id:
+        user = demo_users.get(user_id)
+        if user:
+            return jsonify({
+                'authenticated': True,
+                'user': {
+                    'id': user['id'],
+                    'email': user['email'],
+                    'created_at': '2026-04-28'
+                }
+            }), 200
+    
+    return jsonify({
+        'authenticated': False,
+        'user': None
+    }), 200
