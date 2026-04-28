@@ -53,8 +53,14 @@ def require_login():
 
 
 @app.route('/')
-def landing():
-    return render_template('landing.html')
+def home():
+    # Demo mode: no login required
+    # If you want login later, enable this block
+
+    # if 'user' not in session:
+    #     return redirect('/login')
+
+    return render_template('landing.html')  # or home.html if needed
 
 
 @app.route('/upload')
@@ -120,13 +126,16 @@ def summary_page():
 # Removed: return redirect(url_for('landing'))
 # Frontend login.html handles its own checkAuth() to redirect if needed
 # This endpoint now serves the login page directly
-@app.route('/login')
-def login_page():
-    try:
-        return render_template('login.html')
-    except Exception as e:
-        return jsonify({'error': 'Failed to load login page'}), 500
+# @app.route('/login')
+# def login_page():
+#     return render_template('login.html')
 
+
+@app.route('/')
+def home():
+    if 'user' not in session:
+        return redirect('/login')
+    return render_template('home.html')
 
 @app.route('/generate-summary', methods=['POST'])
 def generate_summary():
@@ -187,7 +196,11 @@ def clear_document():
     session.clear()
     return jsonify({'success': True})
 
-
+# @app.route('/')
+# def home():
+#     if 'user' not in session:
+#         return redirect('/login')
+#     return render_template('home.html')
 # ❌ Removed DB test
 # @app.before_request
 # def before_first_request():
