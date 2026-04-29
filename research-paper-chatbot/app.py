@@ -9,9 +9,6 @@ from backend import (
     retrieve_paragraph_answer
 )
 
-# ✅ S3 Utilities for downloading PDFs on startup
-from utils.s3_utils import init_s3_client, download_all_pdfs
-
 # ✅ Re-enabled Auth imports - needed for frontend endpoints
 from routes.auth_routes import auth_bp
 from routes.chat_routes import chat_bp
@@ -29,22 +26,6 @@ app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-
-# ✅ Initialize S3 and download PDFs on startup
-print("\n" + "="*60)
-print("🚀 Initializing S3 PDF Sync...")
-print("="*60)
-
-if init_s3_client():
-    s3_result = download_all_pdfs()
-    if s3_result['success']:
-        print(f"✅ S3 Sync successful! Downloaded {s3_result['downloaded_count']} PDFs")
-    else:
-        print(f"⚠️  S3 Sync warning: {s3_result['error']}")
-else:
-    print("⚠️  S3 client initialization failed - PDFs won't be synced")
-
-print("="*60 + "\n")
 
 # ✅ Re-enabled blueprint registration - /me and /check-auth endpoints
 app.register_blueprint(auth_bp)
