@@ -72,17 +72,18 @@ def authenticate():
             # LOGIN flow - user exists, verify password
             if verify_password(existing_user['password_hash'], password):
                 # Password is correct - create session
-                set_session_user(existing_user['id'])
+                user_data = {
+                    'id': existing_user['id'],
+                    'email': existing_user['email'],
+                    'created_at': existing_user['created_at'].isoformat() if hasattr(existing_user['created_at'], 'isoformat') else str(existing_user['created_at'])
+                }
+                set_session_user(existing_user['id'], user_data)
                 
                 return jsonify({
                     'success': True,
                     'action': 'login',
                     'message': 'Login successful',
-                    'user': {
-                        'id': existing_user['id'],
-                        'email': existing_user['email'],
-                        'created_at': existing_user['created_at'].isoformat()
-                    }
+                    'user': user_data
                 }), 200
             else:
                 # Password is incorrect
@@ -94,17 +95,18 @@ def authenticate():
             
             if new_user:
                 # User created successfully - create session
-                set_session_user(new_user['id'])
+                user_data = {
+                    'id': new_user['id'],
+                    'email': new_user['email'],
+                    'created_at': new_user['created_at'].isoformat() if hasattr(new_user['created_at'], 'isoformat') else str(new_user['created_at'])
+                }
+                set_session_user(new_user['id'], user_data)
                 
                 return jsonify({
                     'success': True,
                     'action': 'signup',
                     'message': 'Account created successfully',
-                    'user': {
-                        'id': new_user['id'],
-                        'email': new_user['email'],
-                        'created_at': new_user['created_at'].isoformat()
-                    }
+                    'user': user_data
                 }), 200
             else:
                 return jsonify({'error': 'Failed to create account. Please try again.'}), 500
@@ -142,14 +144,16 @@ def get_me():
     """
     user = get_current_user()
     
-    return jsonify({
-        'authenticated': True,
-        'user': {
-            'id': user['id'],
-            'email': user['email'],
-            'created_at': user['created_at'].isoformat()
-        }
-    }), 200
+    if user:
+        return jsonify({
+            'authenticated': True,
+            'user': user
+        }), 200
+    else:
+        return jsonify({
+            'authenticated': False,
+            'user': None
+        }), 401
 
 
 @auth_bp.route('/check-auth', methods=['GET'])
@@ -166,11 +170,7 @@ def check_auth():
     if user:
         return jsonify({
             'authenticated': True,
-            'user': {
-                'id': user['id'],
-                'email': user['email'],
-                'created_at': user['created_at'].isoformat()
-            }
+            'user': user
         }), 200
     else:
         return jsonify({

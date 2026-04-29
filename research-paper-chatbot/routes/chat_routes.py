@@ -1,11 +1,11 @@
 """
 Chat History Routes
 Handles retrieval and storage of user chat history.
+DEMO MODE: Session-only - no database required.
 """
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, session
 from utils.auth import get_current_user, login_required
-from database.db import get_db_cursor
 
 # Create a Blueprint for chat routes
 chat_bp = Blueprint('chat', __name__, url_prefix='/chat')
@@ -46,37 +46,17 @@ def get_chat_history():
         if not user:
             return jsonify({'error': 'User not found'}), 401
         
+        # Demo mode: Get messages from session storage
         user_id = user['id']
+        chat_history = session.get(f'chat_history_{user_id}', [])
         
-        # Fetch last 20 messages from chat_history table
-        with get_db_cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT id, user_id, user_message, ai_response, created_at
-                FROM chat_history
-                WHERE user_id = %s
-                ORDER BY created_at DESC
-                LIMIT 20
-                """,
-                (user_id,)
-            )
-            messages = cursor.fetchall()
-        
-        # Convert datetime to ISO format for JSON serialization
-        formatted_messages = []
-        for msg in messages:
-            formatted_messages.append({
-                'id': msg['id'],
-                'user_id': msg['user_id'],
-                'user_message': msg['user_message'],
-                'ai_response': msg['ai_response'],
-                'created_at': msg['created_at'].isoformat()
-            })
+        # Return last 20 messages
+        messages = sorted(chat_history, key=lambda x: x.get('created_at', ''), reverse=True)[:20]
         
         return jsonify({
             'success': True,
-            'count': len(formatted_messages),
-            'messages': formatted_messages
+            'count': len(messages),
+            'messages': messages
         }), 200
     
     except Exception as e:
@@ -88,7 +68,8 @@ def get_chat_history():
 @login_required
 def save_chat_message():
     """
-    Save a chat message to the database.
+    Save a chat message to session storage.
+    Demo mode - no database required.
     This endpoint can be called after each Q&A interaction.
     
     Request Body:
@@ -104,6 +85,7 @@ def save_chat_message():
         500: Server error
     """
     from flask import request
+    from datetime import datetime
     
     try:
         user = get_current_user()
@@ -122,23 +104,30 @@ def save_chat_message():
         if not user_message or not ai_response:
             return jsonify({'error': 'Both user_message and ai_response are required'}), 400
         
-        # Insert into chat_history table
-        with get_db_cursor() as cursor:
-            cursor.execute(
-                """
-                INSERT INTO chat_history (user_id, user_message, ai_response)
-                VALUES (%s, %s, %s)
-                RETURNING id, created_at
-                """,
-                (user['id'], user_message, ai_response)
-            )
-            result = cursor.fetchone()
+        # Demo mode: Store in session storage
+        user_id = user['id']
+        chat_history_key = f'chat_history_{user_id}'
+        chat_history = session.get(chat_history_key, [])
+        
+        # Create message object
+        message_id = len(chat_history) + 1
+        new_message = {
+            'id': message_id,
+            'user_id': user_id,
+            'user_message': user_message,
+            'ai_response': ai_response,
+            'created_at': datetime.now().isoformat()
+        }
+        
+        # Add to history
+        chat_history.append(new_message)
+        session[chat_history_key] = chat_history
         
         return jsonify({
             'success': True,
             'message': 'Chat message saved',
-            'id': result['id'],
-            'created_at': result['created_at'].isoformat()
+            'id': message_id,
+            'created_at': new_message['created_at']
         }), 201
     
     except Exception as e:
@@ -151,6 +140,7 @@ def save_chat_message():
 def clear_chat_history():
     """
     Delete all chat history for the current user.
+    Demo mode - using session storage.
     
     Returns:
         200: Success message
@@ -163,13 +153,11 @@ def clear_chat_history():
         if not user:
             return jsonify({'error': 'User not found'}), 401
         
-        # Delete all messages for this user
-        with get_db_cursor() as cursor:
-            cursor.execute(
-                "DELETE FROM chat_history WHERE user_id = %s",
-                (user['id'],)
-            )
-            deleted_count = cursor.rowcount
+        # Demo mode: Clear from session storage
+        user_id = user['id']
+        chat_history_key = f'chat_history_{user_id}'
+        deleted_count = len(session.get(chat_history_key, []))
+        session[chat_history_key] = []
         
         return jsonify({
             'success': True,

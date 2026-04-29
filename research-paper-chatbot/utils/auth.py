@@ -1,12 +1,12 @@
 """
 Authentication Utilities
 Provides helper functions for user authentication and session management.
+DEMO MODE: Session-only auth - no database required
 """
 
 from functools import wraps
 from flask import session, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
-from database.db import get_db_cursor
 
 
 def hash_password(password):
@@ -39,56 +39,51 @@ def verify_password(password_hash, password):
 def get_current_user():
     """
     Get the currently logged-in user from the session.
-    Reads user_id from Flask session and fetches user data from PostgreSQL.
+    Demo mode: Uses session storage only, no database.
     
     Returns:
-        dict: User object with id, email, created_at or None if not logged in
+        dict: User object with id, email or None if not logged in
     """
     user_id = session.get('user_id')
     
     if not user_id:
         return None
     
-    try:
-        with get_db_cursor() as cursor:
-            cursor.execute(
-                "SELECT id, email, created_at FROM users WHERE id = %s",
-                (user_id,)
-            )
-            user = cursor.fetchone()
-            return user
-    except Exception as e:
-        print(f"Error fetching current user: {e}")
-        return None
+    # For demo mode, store minimal user info in session
+    user_data = session.get('user_data')
+    if user_data:
+        return user_data
+    
+    return None
 
 
 def get_user_by_email(email):
     """
-    Fetch a user from the database by email address.
+    Check if a user exists by email.
+    Demo mode: Uses session storage only, no database.
+    Stores a simple in-memory user registry in the app.
     
     Args:
         email (str): User's email address
     
     Returns:
-        dict: User object including password_hash, or None if not found
+        dict: User object with password_hash, or None if not found
     """
-    try:
-        with get_db_cursor() as cursor:
-            cursor.execute(
-                "SELECT id, email, password_hash, created_at FROM users WHERE email = %s",
-                (email,)
-            )
-            user = cursor.fetchone()
-            return user
-    except Exception as e:
-        print(f"Error fetching user by email: {e}")
-        return None
+    # In demo mode, we store all users in the session's app context
+    # For simplicity, we'll use a simple in-memory store per session
+    users_registry = session.get('_users_registry', {})
+    
+    email_lower = email.lower()
+    if email_lower in users_registry:
+        return users_registry[email_lower]
+    
+    return None
 
 
 def create_user(email, password):
     """
-    Create a new user in the database.
-    Hashes the password before storing.
+    Create a new user in session storage.
+    Demo mode: No database required.
     
     Args:
         email (str): User's email address
@@ -98,19 +93,23 @@ def create_user(email, password):
         dict: Newly created user object or None if error
     """
     try:
+        email_lower = email.lower()
         password_hash = hash_password(password)
         
-        with get_db_cursor() as cursor:
-            cursor.execute(
-                """
-                INSERT INTO users (email, password_hash)
-                VALUES (%s, %s)
-                RETURNING id, email, created_at
-                """,
-                (email, password_hash)
-            )
-            new_user = cursor.fetchone()
-            return new_user
+        # Create user object
+        new_user = {
+            'id': hash(email_lower),  # Simple ID generation from email
+            'email': email_lower,
+            'password_hash': password_hash,
+            'created_at': __import__('datetime').datetime.now()
+        }
+        
+        # Store in session's user registry
+        users_registry = session.get('_users_registry', {})
+        users_registry[email_lower] = new_user
+        session['_users_registry'] = users_registry
+        
+        return new_user
     except Exception as e:
         print(f"Error creating user: {e}")
         return None
@@ -136,14 +135,18 @@ def login_required(f):
     return decorated_function
 
 
-def set_session_user(user_id):
+def set_session_user(user_id, user_data=None):
     """
-    Set the user_id in the Flask session after successful login/signup.
+    Set the user session after successful login/signup.
+    Demo mode: Stores user data directly in session.
     
     Args:
-        user_id (int): User's database ID
+        user_id (int): User's ID
+        user_data (dict): User object with email, id, created_at
     """
     session['user_id'] = user_id
+    if user_data:
+        session['user_data'] = user_data
     session.permanent = True  # Makes session use PERMANENT_SESSION_LIFETIME
 
 
